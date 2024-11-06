@@ -1,101 +1,155 @@
-import Image from "next/image";
+"use client"
+import { useState, useEffect } from 'react';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    const [mainWallet, setMainWallet] = useState('');
+    const [mintAddress, setMintAddress] = useState('');
+    const [friends, setFriends] = useState([{ address: '', solContributed: '', note: '' }]);
+    const [status, setStatus] = useState('');
+    const [rpcUrl, setRpcUrl] = useState('https://mainnet.helius-rpc.com/?api-key=298da113-724f-45fa-a2c3-7616a2eaba88');
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    // Load data from local storage on component mount
+    useEffect(() => {
+        const savedData = localStorage.getItem('tokenDistributionData');
+        if (savedData) {
+            const { mainWallet, mintAddress, friends } = JSON.parse(savedData);
+            setMainWallet(mainWallet);
+            setMintAddress(mintAddress);
+            setFriends(friends);
+        }
+    }, []);
+
+    // Save data to local storage whenever it changes
+    useEffect(() => {
+        localStorage.setItem('tokenDistributionData', JSON.stringify({ mainWallet, mintAddress, friends }));
+    }, [mainWallet, mintAddress, friends]);
+
+    // Add more friend inputs
+    const addFriend = () => {
+        setFriends([...friends, { address: '', solContributed: '', note: '' }]);
+    };
+
+    // Update friend input values
+    const updateFriend = (index, field, value) => {
+        const updatedFriends = [...friends];
+        updatedFriends[index][field] = value;
+        setFriends(updatedFriends);
+    };
+
+    // Remove a friend from the list
+    const removeFriend = (index) => {
+        const updatedFriends = friends.filter((_, i) => i !== index);
+        setFriends(updatedFriends);
+    };
+
+    // Submit form to trigger transaction
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        // Set status to indicate process started
+        setStatus('Processing transaction...');
+
+        // Call the backend to perform the distribution (you would typically use an API here)
+        try {
+            const response = await fetch('/api/distributeTokens', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ mainWallet, mintAddress, friends, rpcUrl }),
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                setStatus(`Transaction successful! Signature: ${result.signature}`);
+            } else {
+                setStatus(`Transaction failed: ${result.error}`);
+            }
+        } catch (error) {
+            setStatus(`Error: ${error.message}`);
+        }
+    };
+
+    return (
+        <div className="p-4">
+            <h1 className="text-2xl font-bold mb-4">Token Distribution UI</h1>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                    <label className="block text-sm font-medium">RPC URL:</label>
+                    <input
+                        type="text"
+                        value={rpcUrl}
+                        onChange={(e) => setRpcUrl(e.target.value)}
+                        required
+                        className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium">Main Wallet:</label>
+                    <input
+                        type="password"
+                        value={mainWallet}
+                        onChange={(e) => setMainWallet(e.target.value)}
+                        required
+                        className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium">Mint Address:</label>
+                    <input
+                        type="text"
+                        value={mintAddress}
+                        onChange={(e) => setMintAddress(e.target.value)}
+                        required
+                        className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium">Friends</label>
+                    {friends.map((friend, index) => (
+                        <div key={index} className="flex space-x-2 mb-2">
+                            <input
+                                type="text"
+                                placeholder="Friend's Address"
+                                value={friend.address}
+                                onChange={(e) => updateFriend(index, 'address', e.target.value)}
+                                required
+                                className="block w-full border border-gray-300 rounded-md p-2"
+                            />
+                            <input
+                                type="number"
+                                placeholder="SOL Contributed"
+                                value={friend.solContributed}
+                                onChange={(e) => updateFriend(index, 'solContributed', e.target.value)}
+                                required
+                                className="block w-24 border border-gray-300 rounded-md p-2"
+                            />
+                            <input
+                                type="text"
+                                placeholder="Note"
+                                value={friend.note}
+                                onChange={(e) => updateFriend(index, 'note', e.target.value)}
+                                className="block w-24 border border-gray-300 rounded-md p-2"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => removeFriend(index)}
+                                className="mt-2 bg-red-500 text-white rounded-md p-2"
+                            >
+                                Remove
+                            </button>
+                        </div>
+                    ))}
+                    <button type="button" onClick={addFriend} className="mt-2 bg-blue-500 text-white rounded-md p-2">
+                        + Add Friend
+                    </button>
+                </div>
+                <button type="submit" className="mt-4 bg-green-500 text-white rounded-md p-2">Distribute Tokens</button>
+            </form>
+            <div className="mt-4">
+                <label className="block text-sm font-medium">Status: </label>
+                <span>{status}</span>
+            </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+    );
 }
